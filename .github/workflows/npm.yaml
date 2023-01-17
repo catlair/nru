@@ -1,0 +1,30 @@
+name: Publish Package to npmjs
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: Build
+    steps:
+      - uses: actions/checkout@v3
+      # Setup .npmrc file to publish to npm
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install dependencies
+        run: |
+          rm yarn.lock
+          yarn install
+      - name: Build
+        run: |
+          yarn build
+          rm README.md
+          mv .github/workflows/README_mini.md README.md
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
