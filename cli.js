@@ -2,6 +2,7 @@
 
 const cp = require('child_process');
 const fs = require('fs');
+const resolve = require('path').resolve;
 
 const defRegistries = {
   npm: {
@@ -16,16 +17,12 @@ const defRegistries = {
     home: 'https://npmmirror.com/',
     registry: 'https://registry.npmmirror.com/',
   },
-  cnpm: {
-    home: 'https://cnpmjs.org',
-    registry: 'https://r.cnpmjs.org/',
-  },
   huawei: {
-    home: 'https://repo.huaweicloud.com/repository/npm/',
+    home: 'https://mirrors.huaweicloud.com/home',
     registry: 'https://repo.huaweicloud.com/repository/npm/',
   },
   tencent: {
-    home: 'https://mirrors.cloud.tencent.com/npm/',
+    home: 'https://mirrors.cloud.tencent.com/help/npm.html',
     registry: 'https://mirrors.cloud.tencent.com/npm/',
   },
   npmMirror: {
@@ -40,6 +37,10 @@ const defRegistries = {
     home: 'https://mirrors.ustc.edu.cn/help/npm.html',
     registry: 'https://npmreg.proxy.ustclug.org/',
   },
+  cnpm: {
+    home: 'https://cnpmjs.org/',
+    registry: 'https://r.cnpmjs.org/',
+  },
 };
 const MANAGE = {
   yarn: 'yarn',
@@ -50,46 +51,54 @@ const MANAGE = {
   n: 'npm',
 };
 
-const log = console.log;
-const write = fs.writeFileSync;
-const read = fs.readFileSync;
-const resolve = require('path').resolve;
-const exists = fs.existsSync;
-const exec = cp.execSync;
-const oKeys = Object.keys;
-
-const args = process.argv.slice(2);
-const cmd = args.shift();
-
-const registries = getRegistries();
-const nruPath = resolve(__dirname, './nru.json');
-const color = {
-  green: '\x1B[32m%s\x1B[0m',
-  red: '\x1B[31m%s\x1B[0m',
-  yellow: '\x1B[33m%s\x1B[0m',
-  mb: '\x1B[34m',
-  my: '\x1B[33m',
-  end: '\x1B[0m',
-};
-const logger = {
-  red: function (msg) {
-    log(color.red, msg);
+const args = process.argv.slice(2),
+  cmd = args.shift(),
+  log = console.log,
+  write = fs.writeFileSync,
+  read = fs.readFileSync,
+  exists = fs.existsSync,
+  oKeys = Object.keys,
+  registries = getRegistries(),
+  nruPath = resolve(__dirname, './nru.json'),
+  color = {
+    green: '\x1B[32m%s\x1B[0m',
+    red: '\x1B[31m%s\x1B[0m',
+    yellow: '\x1B[33m%s\x1B[0m',
+    mb: '\x1B[34m',
+    my: '\x1B[33m',
+    end: '\x1B[0m',
   },
-  green: function (msg) {
-    log(color.green, msg);
-  },
+  logger = {
+    red: function red(msg) {
+      log(color.red, msg);
+    },
+    green: function green(msg) {
+      log(color.green, msg);
+    },
+  };
+
+const exec = (cmd, options) => {
+  try {
+    return cp.execSync(cmd, options);
+  } catch (e) {
+    process.env.NRU_ERR && logger.red(e);
+  }
 };
+const spawn = (cmd, args, options) => {
+  try {
+    return cp.spawnSync(cmd, args, options);
+  } catch (e) {
+    process.env.NRU_ERR && logger.red(e);
+  }
+};
+
 /**
  * @type {import('child_process').ExecSyncOptions}
  */
 const ioOp = {
   stdio: 'inherit',
 };
-
-const PADLEN =
-  oKeys(registries)
-    .map((key) => key.length)
-    .sort((a, b) => b - a)[0] + 3;
+const PADLEN = Math.max(...oKeys(registries).map((key) => key.length)) + 3;
 const NO_REGISTRY = '  No registries';
 const NO_NAME = '  No registry named ';
 
@@ -98,23 +107,28 @@ switch (cmd) {
   case 'cur':
     onCurrent();
     break;
+
   case 'l':
   case 'ls':
   case 'list':
     onList();
     break;
+
   case 'use':
   case 'u':
     onUse(args[0]);
     break;
+
   case 'test':
   case 't':
     onTest(args[0]);
     break;
+
   case 'add':
   case 'a':
     onAdd(args[0], args[1], args[2]);
     break;
+
   case 'remove':
   case 'delete':
   case 'rm':
@@ -122,39 +136,50 @@ switch (cmd) {
   case 'd':
     onDel(args);
     break;
+
   case 'rename':
   case 'ren':
     onRename(args[0], args[1]);
     break;
+
   case 'home':
     onHome(args[0]);
     break;
+
   case 'define':
   case 'def':
     onDefine(args[0], args[1]);
     break;
+
   case 'login':
   case 'lg':
     onLogin(args.shift(), args);
     break;
+
   case 'publish':
   case 'pub':
     onPublish(args.shift(), args);
     break;
+
   case 'unpublish':
   case 'unpub':
     onUnpublish(args.shift(), args);
     break;
+
   case 'set':
     onSet(args[0], args[1], args[0]);
     break;
+
   case 'set-scope':
   case 'set-s':
     onSetScope(args[0], args[1]);
     break;
+
   case 'del-scope':
   case 'del-s':
     onDelScope(args[0]);
+    break;
+
   default:
     onHelp();
 }
@@ -162,21 +187,20 @@ switch (cmd) {
 function onList() {
   const manager = getManager();
   const allRegistry = getRegistry();
-  const registries = getRegistries();
   const keys = oKeys(registries);
   const mKeys = oKeys(allRegistry);
   let registry;
   let curInList = false;
-  logger.green('* ' + manager);
-  for (const key of keys) {
+  logger.green('\n* ' + manager);
+  keys.forEach((key) => {
     registry = registries[key].registry;
-
     let prefix = '';
     let cr;
     mKeys.length > prefix.length &&
       mKeys.forEach((mKey) => {
         if (allRegistry[mKey] === registry) {
           prefix += mKey;
+
           if (mKey === manager[0]) {
             cr = color.green;
             curInList = true;
@@ -195,10 +219,11 @@ function onList() {
           registry
         )
       );
-      continue;
+      return;
     }
+
     log(getRegistryPrint('    ', key, registry));
-  }
+  });
 
   if (!curInList) {
     log(`\n current registry: ${allRegistry[manager]} not in list`);
@@ -206,13 +231,15 @@ function onList() {
 }
 
 function onUse(registryArg = 'npm') {
-  const registries = getRegistries();
   const registry = registries[registryArg];
+
   if (!registry) {
     logger.red(NO_NAME + registryArg);
     return;
   }
+
   const manager = getManager();
+
   if (setRegistry(registry.registry, manager)) {
     log(
       color.green,
@@ -225,7 +252,6 @@ function onUse(registryArg = 'npm') {
 }
 
 function onTest(name) {
-  const registries = getRegistries();
   if (name && registries[name]) {
     testRegistry(registries[name].registry, name);
     return;
@@ -234,12 +260,13 @@ function onTest(name) {
   const currentRegistry = getCurrentRegistry(getManager());
   let registry,
     curInList = false;
-
-  for (const key of oKeys(registries)) {
+  oKeys(registries).forEach((key) => {
     registry = registries[key].registry;
-    curInList = registry === currentRegistry;
+    if (registry === currentRegistry) {
+      curInList = true;
+    }
     testRegistry(registry, key);
-  }
+  });
 
   if (!curInList) {
     testRegistry(currentRegistry, 'current');
@@ -251,23 +278,19 @@ function onAdd(name, registry, home) {
     logger.red('  Registry named ' + name + ' already exists');
     return;
   }
+
   const configPath = getConfigPath();
+
   if (!exists(configPath)) {
-    write(
-      configPath,
-      iniStringify({
-        [name]: {
-          registry: addEndSlash(registry),
-          home,
-        },
-      })
-    );
+    writeConfig({});
     return;
   }
 
   const config = getCustomRegistries();
+
   if (config[name]) {
     const readline = require('readline');
+
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -280,18 +303,19 @@ function onAdd(name, registry, home) {
         color.end,
       (answer) => {
         rl.close();
+
         if (answer.toLowerCase().startsWith('y')) {
-          writeConfig();
+          writeConfig(config);
         } else {
           logger.red('  Aborted');
         }
       }
     );
   } else {
-    writeConfig();
+    writeConfig(config);
   }
 
-  function writeConfig() {
+  function writeConfig(config) {
     config[name] = {
       registry: addEndSlash(registry),
       home,
@@ -356,29 +380,35 @@ function onRename(oldName, newName) {
 }
 
 function onHome(name) {
-  const registries = getRegistries();
   if (!registries[name]) {
     logger.red(NO_NAME + name);
     return;
   }
+
   const home = registries[name].home;
+
   if (!home) {
     logger.red('  No home for registry ' + name);
     return;
   }
+
   let open;
+
   switch (process.platform) {
     case 'darwin':
       open = 'open';
       break;
+
     case 'win32':
       open = 'start';
       break;
+
     default:
       open = 'xdg-open';
   }
+
   log(color.yellow, '  Opening ' + home + ' in browser');
-  cp.exec(`${open} ${home}`);
+  exec(`${open} ${home}`);
 }
 
 function onCurrent() {
@@ -390,8 +420,14 @@ function onCurrent() {
 
 function onDefine(manager, registry) {
   manager = manager.toLowerCase();
+
   if (oKeys(MANAGE).includes(manager)) {
-    write(nruPath, JSON.stringify({ define: manager }));
+    write(
+      nruPath,
+      JSON.stringify({
+        define: manager,
+      })
+    );
     logger.green('  Current manager defined as ' + manager);
 
     if (registry) {
@@ -401,15 +437,16 @@ function onDefine(manager, registry) {
 }
 
 function onLogin(name, args) {
-  const cmd = ['login'];
-  const registries = getRegistries();
+  const loginCmd = ['login'];
   const registry = registries[registries[name] ? name : 'npm'].registry;
   const manager = MANAGE[getManager()];
+
   if (isNewYarn(manager)) {
-    cmdWithRegistry('npm', registry, cmd, args);
-    cmd.unshift('npm');
+    cmdWithRegistry('npm', registry, loginCmd, args);
+    loginCmd.unshift('npm');
   }
-  cmdWithRegistry(manager, registry, cmd, args);
+
+  cmdWithRegistry(manager, registry, loginCmd, args);
 }
 
 function onPublish(name, args) {
@@ -421,7 +458,6 @@ function onUnpublish(name, args) {
 }
 
 function publishOrUnpublish(name, args, unpublish = '') {
-  const registries = getRegistries();
   cmdWithRegistry(
     'npm',
     registries[registries[name] ? name : 'npm'].registry,
@@ -432,21 +468,23 @@ function publishOrUnpublish(name, args, unpublish = '') {
 
 function onSet(name, key, value) {
   const config = getCustomRegistries();
+
   if (!config[name]) {
     logger.red(NO_NAME + name);
     return;
   }
+
   config[name][key] = value;
   write(getConfigPath(), iniStringify(config));
   logger.green('  Registry ' + name + ' set ' + key + ' to ' + value);
 }
 
 function onSetScope(scope, name) {
-  const registries = getRegistries();
   if (!registries[name]) {
     logger.red(NO_NAME + name);
     return;
   }
+
   exec('npm config set @' + scope + ':registry ' + registries[name]);
 }
 
@@ -459,9 +497,6 @@ function onHelp() {
   log(read('./README.md', 'utf8').match(/Usage\s*```bash([\s\S]*?)\s*```/)[1]);
 }
 
-/**
- * 测试是否可用
- */
 function testRegistry(registry, key) {
   const request = registry.startsWith('http:')
     ? require('http')
@@ -481,15 +516,12 @@ function testRegistry(registry, key) {
   }, 5000);
 }
 
-/**
- * 获取当前使用的 registry
- */
 function getCurrentRegistry(manager) {
-  return addEndSlash(
-    exec(MANAGE[manager] + ' config get ' + getRegistryCmd(MANAGE[manager]))
-      .toString()
-      .trim()
+  const url = exec(
+    MANAGE[manager] + ' config get ' + getRegistryCmd(MANAGE[manager])
   );
+  if (!url) return '';
+  return addEndSlash(url.toString().trim());
 }
 
 function getRegistry() {
@@ -521,9 +553,11 @@ function getRegistries() {
 
 function getCustomRegistries() {
   const configPath = getConfigPath();
+
   if (exists(configPath)) {
     return iniParse(read(configPath, 'utf-8'));
   }
+
   return {};
 }
 
@@ -536,7 +570,7 @@ function addEndSlash(registry) {
 }
 
 function cmdWithRegistry(cmd, registry, pres, args) {
-  return cp.spawn(cmd, [...pres, '--registry=' + registry, ...args], ioOp);
+  return spawn(cmd, [...pres, '--registry=' + registry, ...args], ioOp);
 }
 
 function getManager() {
@@ -544,7 +578,10 @@ function getManager() {
 }
 
 function isNewYarn(manager) {
-  return manager === 'yarn' && !exec('yarn -v').toString().startsWith('1.');
+  if (manager !== 'yarn') return;
+  const ver = exec('yarn -v');
+  if (!ver) return;
+  return !ver.toString().startsWith('1.');
 }
 
 function iniParse(str) {
@@ -556,13 +593,16 @@ function iniParse(str) {
     if (/^\s*[;#]/.test(line)) {
       return;
     }
+
     if ((match = line.match(/^\s*\[([^\]]*)\]\s*$/))) {
       section = match[1];
       return;
     }
-    if ((match = line.match(/^\s*([\w\.\-\_]+)\s*=\s*(.*?)\s*$/))) {
+
+    if ((match = line.match(/^\s*([\w\.\-_]+)\s*=\s*(.*?)\s*$/))) {
       const key = match[1];
       let value = match[2];
+
       if (value.charAt(0) === '"') {
         value = value
           .replace(/\\(["\\])/g, '$1')
@@ -570,15 +610,19 @@ function iniParse(str) {
       } else {
         value = value.replace(/\\(\\)/g, '$1');
       }
+
       if (!section) {
         section = 'default';
       }
+
       if (!result[section]) {
         result[section] = {};
       }
+
       result[section][key] = value;
       return;
     }
+
     if (line.length === 0 && section) {
       section = null;
     }
