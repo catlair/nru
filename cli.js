@@ -42,14 +42,9 @@ const defRegistries = {
     registry: 'https://r.cnpmjs.org/',
   },
 };
-const MANAGE = {
-  yarn: 'yarn',
-  pnpm: 'pnpm',
-  npm: 'npm',
-  y: 'yarn',
-  p: 'pnpm',
-  n: 'npm',
-};
+
+const MANAGER = ['npm', 'yarn', 'pnpm',];
+
 
 const args = process.argv.slice(2),
   cmd = args.shift(),
@@ -60,6 +55,8 @@ const args = process.argv.slice(2),
   oKeys = Object.keys,
   registries = getRegistries(),
   nruPath = resolve(__dirname, './nru.json'),
+  nru = require(nruPath),
+  nruManager = nru.m,
   color = {
     green: '\x1B[32m%s\x1B[0m',
     red: '\x1B[31m%s\x1B[0m',
@@ -191,7 +188,7 @@ function onList() {
   const mKeys = oKeys(allRegistry);
   let registry;
   let curInList = false;
-  logger.green('\n* ' + manager);
+  logger.green('\n* ' + manager[0]);
   keys.forEach((key) => {
     registry = registries[key].registry;
     let prefix = '';
@@ -199,9 +196,9 @@ function onList() {
     mKeys.length > prefix.length &&
       mKeys.forEach((mKey) => {
         if (allRegistry[mKey] === registry) {
-          prefix += mKey;
+          prefix += mKey[0];
 
-          if (mKey === manager[0]) {
+          if (mKey === manager) {
             cr = color.green;
             curInList = true;
           } else {
@@ -228,6 +225,7 @@ function onList() {
   if (!curInList) {
     log(`\n current registry: ${allRegistry[manager]} not in list`);
   }
+  log();
 }
 
 function onUse(registryArg = 'npm') {
@@ -297,10 +295,10 @@ function onAdd(name, registry, home) {
     });
     rl.question(
       color.my +
-        '  Registry named ' +
-        name +
-        ' already exists, do you want to override it? [y/N] ' +
-        color.end,
+      '  Registry named ' +
+      name +
+      ' already exists, do you want to override it? [y/N] ' +
+      color.end,
       (answer) => {
         rl.close();
 
@@ -420,26 +418,32 @@ function onCurrent() {
 
 function onDefine(manager, registry) {
   manager = manager.toLowerCase();
+  const newManager = MANAGER.find((m) => m.startsWith(manager))
 
-  if (oKeys(MANAGE).includes(manager)) {
+  if (newManager) {
+    nruManager[newManager] = newManager;
     write(
       nruPath,
       JSON.stringify({
-        define: manager,
+        ...nru,
+        define: newManager,
       })
     );
+    nru.define = manager;
     logger.green('  Current manager defined as ' + manager);
 
     if (registry) {
       onUse(registry);
     }
+  } else {
+    logger.red('  Manager ' + manager + ' not found');
   }
 }
 
 function onLogin(name, args) {
   const loginCmd = ['login'];
   const registry = registries[registries[name] ? name : 'npm'].registry;
-  const manager = MANAGE[getManager()];
+  const manager = nruManager[getManager()];
 
   if (isNewYarn(manager)) {
     cmdWithRegistry('npm', registry, loginCmd, args);
@@ -522,22 +526,21 @@ function testRegistry(registry, key) {
 
 function getCurrentRegistry(manager) {
   const url = exec(
-    MANAGE[manager] + ' config get ' + getRegistryCmd(MANAGE[manager])
+    nruManager[manager] + ' config get ' + getRegistryCmd(nruManager[manager])
   );
   if (!url) return '';
   return addEndSlash(url.toString().trim());
 }
 
 function getRegistry() {
-  return {
-    n: getCurrentRegistry('n'),
-    y: getCurrentRegistry('y'),
-    p: getCurrentRegistry('p'),
-  };
+  return oKeys(nruManager).reduce((acc, key) => {
+    acc[key] = getCurrentRegistry(nruManager[key]);
+    return acc;
+  }, {});
 }
 
 function setRegistry(registry, manager) {
-  const pkgM = MANAGE[manager];
+  const pkgM = nruManager[manager];
   if (!pkgM) return;
   exec(pkgM + ' config set ' + getRegistryCmd(pkgM) + ' ' + registry);
   return true;
@@ -578,7 +581,7 @@ function cmdWithRegistry(cmd, registry, pres, args) {
 }
 
 function getManager() {
-  return require(nruPath).define;
+  return nru.define;
 }
 
 function isNewYarn(manager) {
