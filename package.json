@@ -1,6 +1,6 @@
 {
   "name": "nru",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "npm registry utility -- mini nrm",
   "main": "cli.min.js",
   "bin": "cli.min.js",
