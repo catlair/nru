@@ -493,8 +493,12 @@ function onDelScope(scope) {
 }
 
 function onHelp() {
-  // @ts-ignore
-  log(read('./README.md', 'utf8').match(/Usage\s*```bash([\s\S]*?)\s*```/)[1]);
+  log(
+    // @ts-ignore
+    read(resolve(__dirname, './README.md'), 'utf8').match(
+      /Usage\s*```bash([\s\S]*?)\s*```/
+    )[1]
+  );
 }
 
 function testRegistry(registry, key) {
