@@ -25,6 +25,8 @@ jobs:
           yarn build
           rm README.md
           mv .github/workflows/README_mini.md README.md
+          node .github/workflows/rm-spaces.js
+          mv .github/workflows/nru.json nru.json
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
