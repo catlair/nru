@@ -113,7 +113,7 @@ Commands:
 - [npmMirror](https://skimdb.npmjs.com/)
 - [github](https://npm.pkg.github.com/)
 - [ustc](https://mirrors.ustc.edu.cn/help/npm.html)
-- [cnpm](https://cnpmjs.org/)
+- [nju](https://doc.nju.edu.cn/books/35f4a/page/npm)
 
 ## Related Projects
 
