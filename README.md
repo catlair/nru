@@ -114,6 +114,7 @@ Commands:
 - [github](https://npm.pkg.github.com/)
 - [ustc](https://mirrors.ustc.edu.cn/help/npm.html)
 - [cnpm](https://cnpmjs.org/)
+- [cernet](https://help.mirrors.cernet.edu.cn/npm)
 
 ## Related Projects
 
