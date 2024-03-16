@@ -41,10 +41,6 @@ const defRegistries = {
     home: 'https://cnpmjs.org/',
     registry: 'https://r.cnpmjs.org/',
   },
-  cernet: {
-    home: 'https://help.mirrors.cernet.edu.cn/npm',
-    registry: 'https://mirrors.cernet.edu.cn/npm',
-  },
 };
 
 const MANAGER = ['npm', 'yarn', 'pnpm',];
