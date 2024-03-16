@@ -37,9 +37,9 @@ const defRegistries = {
     home: 'https://mirrors.ustc.edu.cn/help/npm.html',
     registry: 'https://npmreg.proxy.ustclug.org/',
   },
-  cnpm: {
-    home: 'https://cnpmjs.org/',
-    registry: 'https://r.cnpmjs.org/',
+  nju: {
+    home: 'https://doc.nju.edu.cn/books/35f4a/page/npm',
+    registry: 'https://repo.nju.edu.cn/repository/npm/',
   },
 };
 
